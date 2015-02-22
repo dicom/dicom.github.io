@@ -1,0 +1,163 @@
+/* FONT PROPERTIES */
+
+body {
+  font-family: bitstream vera sans, arial, helvetica, sans-serif;
+  font-size: 10px;
+}
+
+h1, h2 {
+  font-weight: lighter;
+  margin: 0;
+  padding: 0;
+}
+
+h3 {
+  margin: 0;
+  padding: 0;
+}
+
+.hidden {
+  display: none;
+}
+
+/* MAIN */
+
+/* Main position: */
+#main {
+  width: 850px;
+  position: relative;
+  left: 0px;
+  top: 65px;
+}
+
+/* Main body text position: */
+#content {
+  position: absolute;
+  top: 120px;
+  left: 220px;
+}
+
+/* Main body text properties: */
+#main-text {
+  font-size: 1.2em;
+  line-height: 1.8em;
+  width: 650px;
+  text-align: justify;
+  margin: 0px;
+  margin-top: 20px;
+}
+
+#main-text em {
+  font-style: oblique;
+  text-decoration: underline;
+}
+
+/* BANNER */
+
+#banner {
+  position: absolute;
+  left: 200px;
+  height: 90px;
+  width: 710px;
+  color: #fff;
+  background-image: url(banner_background.png);
+  background-repeat: no-repeat;
+  text-align: center;
+  padding-left: 0px;
+  padding-right: 0px;
+  padding-top: 10px;
+  z-index: 2;
+}
+
+#banner-title {
+	font-size: 6.4em;
+}
+
+#banner-title a {
+  color: #fee;
+  text-decoration: none;
+}
+
+#banner-title a:visited {
+  color: #ffeeee;
+}
+
+#banner-title a:hover {
+  color: #fff;
+}
+
+#banner-title a:active {
+  color: #fff;
+}
+
+#banner-slogan {
+  font-size: 1.8em;
+  margin: 0px;
+  color: #edd;
+}
+
+/* SIDEBAR */
+
+/* Button text: */
+.label {
+  font-size: 2.2em;
+  position: relative;
+  top: 20px;
+  left: 20px;
+}
+
+/* Sidebar position: */
+#sidebar {
+  padding: 12px 10px;
+  width: 250px;
+  position: absolute;
+  top: 40px;
+  left: 0px;
+  z-index: 0;
+}
+
+/* Sidebar background image: */
+#sidebar .button {
+  width: 225px;
+  height: 70px;
+  background-image: url(button_background.png);
+  background-repeat: no-repeat;
+  vertical-align: middle;
+  font-weight: bold;
+  margin: 12px 1px;
+  border-width: 1px;
+}
+
+/* Sidebar link properties: */
+#sidebar .button.youarehere {
+  color: #fff;
+}
+
+#sidebar .button a {
+  color: #fdd;
+  text-decoration: none;
+}
+
+#sidebar .button a:visited {
+  color: #dcc;
+}
+
+#sidebar .button a:hover {
+  color: #fee;
+}
+
+#sidebar .button a:active {
+  color: #fee;
+}
+
+/* Command prompt field: */
+pre
+{
+  font-size: 0.9em;
+  border: 1px solid #888888;
+  background-color: #F4F4F4;
+  overflow: auto;
+  padding: 5px 10px 5px 10px;
+  margin-bottom: 25px;
+}
+

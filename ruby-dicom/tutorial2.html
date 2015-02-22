@@ -1,0 +1,356 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xml:lang="en" xmlns="http://www.w3.org/1999/xhtml" lang="en"><head>
+
+
+
+<title>RUBY DICOM</title>
+<meta name="author" content="Christoffer Lervåg">
+<meta name="date" content="2009-03-30">
+<meta name="keywords" content="ruby dicom library toolkit tutorial anonymization anonymize anonymizing anonymizer">
+<meta name="description" content="Ruby DICOM is a small library for handling DICOM files in the Ruby language.">
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta http-equiv="content-style-type" content="text/css">
+<link href="content/index.css" rel="stylesheet" type="text/css">
+</head><body>
+<div id="main">
+  <div id="banner">
+  <h1 id="banner-title"></h1>
+  <p id="banner-slogan"></p>
+  </div>
+
+  <div id="sidebar">
+    <h2 class="hidden">Site Navigation</h2>
+    <div class="button">
+        <a href="index.html"><div class="label">Home</div></a>
+    </div>
+
+    <div class="button">
+        <a href="http://rubygems.org/gems/dicom"><div class="label">Download</div></a>
+    </div>
+
+    <div class="button">
+        <a href="tutorials.html"><div class="label">Tutorials</div></a>
+    </div>
+
+    <div class="button">
+        <a href="publications.html"><div class="label">Publications</div></a>
+    </div>
+
+    <div class="button">
+        <a href="http://groups.google.com/group/ruby-dicom"><div class="label">Forum</div></a>
+    </div>
+
+    <div class="button">
+        <a href="https://github.com/dicom/ruby-dicom"><div class="label">Development</div></a>
+    </div>
+
+  </div>
+
+  <div id="content">
+
+    <div id="main-text">
+      <h2>Tutorial 2: Easy and powerful DICOM anonymization</h2>
+      <h3>From trivial modifications to complex dataset handling with ruby-dicom</h3>
+      <p>So you want to anonymize some DICOM files, huh? Admittedly there are a lot of (free) programs out there that will
+      allow you to anonymize your DICOM files.
+      Some of them will cost money though if you want to unlock more advanced features. With the Anonymizer
+      class in ruby-dicom it's all free of course. It tries to offer everything ranging from the quick and simple to
+      the more advanced,
+      customized scenarios, all the while keeping it easy! Please have a look at its features. Chances are it
+      will probably cover your needs, and should you discover that it falls short: Take a quick look at the source code:
+      Work with it! Ruby code is surprisingly easy even if you don't have a lot of experience with it.</p>
+
+      <p>Alright, let us start with a list of what you'll need for this tutorial:</p>
+      <p><a href="http://www.ruby-lang.org/en/downloads/">Ruby</a></p>
+      <p><a href="http://rubygems.org/gems/dicom">ruby-dicom</a></p>
+      <p><a href="https://github.com/gemhome/rmagick">RMagick</a>  (Optional: Only needed if you want to edit pixel data)</p>
+
+      <p>This tutorial page will actually contain four separate tutorials. We will start off with a couple of simple anonymization
+      examples. Then we will move on and use more advanced features like enumeration for replacement values,
+      and for the last tutorial, we will go off the hook and anonymize burned-in information in the image data as well
+      as burn in a small signature ourself!</p>
+
+      <p><h3>Part 1: Quick &amp; dirty single file anonymization</h3></p>
+      <p>So you've got this really interesting DICOM sample file isolated on your drive,
+			and you want to send it to someone on the outside (e.g. a research colleague, or (shudder to think) product support).
+			However, the file does contain sensitive patient information, and you'd really like to remove that first.
+			Rest assured, this can be achieved by just 4 simple lines of perfectly comprehensible, expressive ruby-dicom code:</p>
+
+			<pre class="src">
+require 'dicom'
+dcm = DICOM::DObject.read('sensitive.dcm')
+dcm.anonymize
+dcm.write('clean.dcm')</pre>
+
+			<p><h3>Part 2: Perform a simple folder anonymization</h3></p>
+      <p>Stepping it up a notch, you've now got this entire series of interesting DICOM images needing to be transmnitted
+			out into the wild. The files are nicely isolated in a folder on your drive, awaiting that obligatory de-identification
+			process. This is not much more difficult than the first example (indeed we shall achieve this in just three lines of code).
+			However, since we are now dealing with multiple files, we will need to take a different approach, and invoke the
+			Anonymizer class. In this example, all DICOM files contained in the given folder (including any sub-folders!) will be
+			anonymized. As with the previous example, attributes are anonymized using a set of default settings. Note that
+			unlike in the previous example, the files in this example will be <b>overwritten</b> with the anonymized version.</p>
+
+      <pre class="src">
+require 'dicom'
+a = DICOM::Anonymizer.new
+a.anonymize('/dicom/ct-series')</pre>
+
+      <p>That's it! The anonymize method will print some information to the screen as it processes the DICOM files.
+      Your output might look something like this:</p>
+
+      <pre class="src">
+irb(main):005:0> a.execute
+*******************************************************
+Initiating anonymization process.
+Searching for files...
+Done.
+2 files have been identified in the specified folder(s).
+Separate write folder not specified. Will overwrite existing DICOM files.
+Initiating read/update/write process...
+Anonymization process completed!
+All files in specified folder(s) were SUCCESSFULLY read to DICOM objects.
+All DICOM objects were SUCCESSFULLY written as DICOM files (2 files).
+Elapsed time: 0.1 seconds
+*******************************************************
+      </pre>
+
+      <p>Now I figure you might ask: Which tags were really anonymized here? Finding that out is quite easy, just call
+      the print method and you'll get a small list answering just that.</p>
+
+      <pre class="src">$ a.print<br/></pre>
+
+      <p>This method prints a list of data elements that are selected for anonymization. The list contains data element
+      tag, name, type and the value which will be written to the anonymized files.</p>
+
+      <pre class="src">
+irb(main):005:0> a.print
+0008,0012 Instance Creation Date     DA 20000101
+0008,0013 Instance Creation Time     TM 000000.00
+0008,0020 Study Date                 DA 20000101
+0008,0023 Content Date               DA 20000101
+0008,0030 Study Time                 TM 000000.00
+0008,0033 Content Time               TM 000000.00
+0008,0080 Institution Name           LO Institution
+0008,0090 Referring Physician's Name PN Physician
+0008,1010 Station Name               SH Station
+0010,0010 Patient's Name             PN Patient
+0010,0020 Patient ID                 LO ID
+0010,0030 Patient's Birth Date       DA 20000101
+0010,0040 Patient's Sex              CS N
+0020,4000 Image Comments             LT
+      </pre>
+
+      <p><h3>Part 3: Advanced anonymization with enumeration and identity file</h3></p>
+      <p>In the first example we just performed a simple anonymization using default settings. However,
+      there are quite a few more 'advanced' settings available in the Anonymizer class that you might find useful.
+      Such features include:</p>
+      <ul>
+      <li>Specifying a separate write path to store the anonymized files, instead of overwriting your existing files.</li>
+      <li>Blanking all data element values instead of assigning a custom, general string value.</li>
+      <li>Add several folders to be anonymized (along with their sub-folders).</li>
+      <li>Specify one or several sub-folders to be exempted from anonymization.</li>
+      <li>Add or remove tags from the list of tags that will be anonymized.</li>
+      <li>Specify that all private tags are to be deleted.</li>
+      </ul>
+
+      <p>Having talked a bit about features, it's time to get on with our example. What we are going to do here is
+      make a small script that will anonymize a DICOM directory with enumeration and create an identity file.
+      What, exactly, is that, you may ask? Let me explain:</p>
+
+      <p>With enumeration enabled, the anonymizer class will keep track of the values it encounters for all
+      the data elements where this feature has been requested. In the first DICOM file, the value of the "Patient's Name"
+      data element will be changed from say, "John Doe", to "Name1". All subsequent DICOM files that contain this name,
+      will receive the same "Name1" value for that particular data element. When another name is encountered, the
+      anonymized value will be bumped to "Name2". If several sets of DICOM files contain the same "Referring Physician's Name"
+      they will all be anonymized with a value such as "Physician1".</p>
+
+      <p>In addition to using enumeration and identity file, we will tell our Anonymizer to delete all private tags
+      from the anonymized DICOM files (You never know what might be hiding in those unpredictable private tags, right?).</p>
+
+      <pre class="src">
+# Load the ruby-dicom library:
+require "rubygems"
+require "dicom"
+# Load an anonymization instance:
+a = DICOM::Anonymizer.new
+# Add the folder to be anonymized:
+a.add_folder("/home/dicom")
+# Request private data element removal:
+a.delete_private = true
+# In addition to the default selection of tags to be anonymized, we would like to add "Operator's Name" as well:
+a.set_tag("0008,1070", :value => "Operator", :enum => true)
+# Lets leave out "Institution Name" from the anonymization process:
+a.remove_tag("0008,0080")
+# Select the enumeration feature:
+a.enumeration = true
+# Specify a file to keep track of the identities behind the enumerated, anonymized values:
+a.identity_file = "/home/identity.txt"
+# Avoid overwriting the original files by storing the anonymized files in a separate folder from the original files:
+a.write_path = "/home/write"
+# Print the list of selected tags just to verify that everything is correct:
+a.print
+# Run the actual anonymization:
+a.execute
+      </pre>
+
+      <p>Lets name it anonymize.rb, execute and see how it goes. Your terminal output might end up looking something like this:</p>
+
+      <pre class="src">
+user@home:~/ruby/dicom$ ruby anonymize.rb
+0008,0012 Instance Creation Date     DA 20000101  false
+0008,0013 Instance Creation Time     TM 000000.00 false
+0008,0020 Study Date                 DA 20000101  false
+0008,0023 Content Date               DA 20000101  false
+0008,0030 Study Time                 TM 000000.00 false
+0008,0033 Content Time               TM 000000.00 false
+0008,0090 Referring Physician's Name PN Physician true
+0008,1010 Station Name               SH Station   true
+0010,0010 Patient's Name             PN Patient   true
+0010,0020 Patient ID                 LO ID        true
+0010,0030 Patient's Birth Date       DA 20000101  false
+0010,0040 Patient's Sex              CS N         false
+0020,4000 Image Comments             LT           false
+0008,1070 Operators' Name            PN Operator  true
+*******************************************************
+Initiating anonymization process.
+Searching for files...
+Done.
+1046 files have been identified in the specified folder(s).
+Processing write paths...
+Done
+Initiating read/update/write process (This may take some time)...
+Anonymization process completed!
+All files in specified folder(s) were SUCCESSFULLY read to DICOM objects.
+All DICOM objects were SUCCESSFULLY written as DICOM files (1046 files).
+Writing identity file.
+Done
+Elapsed time: 55.0 seconds
+*******************************************************
+      </pre>
+
+      <p>Now, part of what we did here, was to create an identity file that enables us to re-identify the anonymized
+      dicom files at a later time, if we wish so. Lets take a look at the content of the identity file that was created for us:</p>
+
+      <pre class="src">
+0008,0090
+Physician1;Dr Feelgood
+Physician2;Sam Surgery
+Physician3;Pat Placebo
+
+0008,1010
+Station1;CT1
+Station2;CT2
+
+0010,0010
+Patient1;Peter Pelvis
+Patient2;Jackie Chaan
+Patient3;Indiana Jonas
+Patient4;Sara Sirius
+Patient5;Anna Sahara
+Patient6;John Doo
+Patient7;Richard Sick
+Patient8;Tommy Tumor
+
+0010,0020
+ID1;123456
+ID2;654321
+ID3;666444
+ID4;444666
+ID5;010110
+ID6;098765
+ID7;567890
+ID8;011001
+
+0008,1070
+Operator1;John Operator
+Operator2;Jack Buttons
+Operator3;Connie Computer
+      </pre>
+
+      <p><h3>Part 4: Anonymizing burned-in image data</h3></p>
+      <p>For this final part, we will manipulate the pixel data itself. This functionality is not built into the anonymizer class,
+      and so we will be working directly with the DObject class instead. Our task here will be to wipe out any text that
+      has been printed directly in the pixel data, and just to show off, we'll annotate the DICOM image with a little signature
+      of our own.</p>
+
+      <p>In this example I will use a DICOM file that I found somewhere on the web. As such, its burned in content is not sensitive,
+      but the principle remains: To show how to remove burned in text from the image. The original image is displayed below. In case
+      you are unfamiliar with RMagick, I'll show you how the DICOM image data was extracted and converted to a jpg image:</p>
+
+      <pre class="src">
+require 'dicom'
+require 'RMagick'
+dcm = DICOM::DObject.read("myFile.dcm")
+image = dcm.image.normalize
+image.write("dicom.jpg")
+      </pre>
+
+      <p><img src="./content/tutorial2-1.jpg" width="512" height="512" alt="Original DICOM image"></p>
+
+      <p>What we are going to do now is make a small script that does the following:</p>
+      <ul><li>Reads the DICOM file and extracts the pixel data as a RMagick object.
+      <li>Defines a number of rectangles to cover the various areas of the image containing burned in text.
+      <li>Iterates through these (black) rectangles and paint them to our image object.
+      <li>Creates a bit of annotation and puts that in our image object.
+      <li>Puts the RMagick object back into the DICOM object and saves it to file.</ul>
+
+      <pre class="src">
+require 'dicom'
+require 'RMagick'
+include Magick
+# Load file and image:
+dcm = DICOM::DObject.read("/home/dicom/burned.dcm")
+# You might (or might not) want to normalize the gray scale:
+image = dcm.image.normalize
+# Create an array of 'black' rectangles:
+rectangles = Array.new
+rectangles &lt;&lt; [0,0,300,100]
+rectangles &lt;&lt; [411,0,511,100]
+rectangles &lt;&lt; [0,380,100,511]
+rectangles &lt;&lt; [411,390,511,511]
+rectangles &lt;&lt; [0,420,511,511]
+# Paste black rectangles on top of image:
+rectangles.each do |r|
+  erase = Draw.new
+  erase.fill "Black"
+  erase.rectangle r[0], r[1], r[2], r[3]
+  erase.draw(image)
+end
+# Insert annotations:
+text = Draw.new
+text.fill = 'White'
+text.pointsize = 14
+text.annotate(image, 0, 0, 10, 30, "Anonymized by:")
+t = Time.now
+text.annotate(image, 0, 0, 10, 45, t.strftime("Processed %m/%d/%Y"))
+text.font_style = ItalicStyle
+text.annotate(image, 0, 0, 130, 30, "The Cool Admin")
+# Insert pixel data back into the DICOM object and write to file:
+dcm.image = image
+dcm.write("/home/dicom/anonymous.dcm")
+      </pre>
+
+      <p>Now, let's have a look at the resulting DICOM image. Using the technique detailed earlier for extracting the pixel data
+      and saving them as an image file, we get the following:</p>
+
+      <p><img src="./content/tutorial2-2.jpg" width="512" height="512" alt="Anonymized DICOM image"></p>
+
+      <p>Hopefully, as of this moment, your anonymization skills should be sufficient to tackle whatever the local DICOM disciples
+      at your work place throw at you. Using the scripting power of the Ruby language, along with ruby-dicom and RMagick,
+      you should be able to do pretty much anything you want with your DICOM files as far as anonymization is concerned.</p>
+
+      <p>I hope you have found this tutorial helpful, and as always: All feedback is appreciated!</p>
+      <br/>
+      <p><i>Published: March 30th 2009</p>
+      <p>Last updated: February 22nd 2015</p>
+
+      <span style="font-size: 0.92em; color: #7e7e7e;"><p><i>Christoffer Lerv&aring;g<br />
+      chris.lervag <span style="color: #aeaeae;">@nospam.com</span> @gmail.com</i></p><span>
+
+     </div>
+
+   </div>
+</div>
+
+</body></html>

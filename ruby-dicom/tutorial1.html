@@ -1,0 +1,349 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xml:lang="en" xmlns="http://www.w3.org/1999/xhtml" lang="en"><head>
+
+
+
+<title>RUBY DICOM</title>
+<meta name="author" content="Christoffer Lervåg">
+<meta name="date" content="2008-08-25">
+<meta name="keywords" content="ruby dicom library toolkit tutorial rails database">
+<meta name="description" content="Ruby DICOM is a small library for handling DICOM files in the Ruby language.">
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta http-equiv="content-style-type" content="text/css">
+<link href="content/index.css" rel="stylesheet" type="text/css">
+</head><body>
+<div id="main">
+  <div id="banner">
+  <h1 id="banner-title"></h1>
+  <p id="banner-slogan"></p>
+  </div>
+
+  <div id="sidebar">
+    <h2 class="hidden">Site Navigation</h2>
+    <div class="button">
+        <a href="index.html"><div class="label">Home</div></a>
+    </div>
+
+    <div class="button">
+        <a href="http://rubygems.org/gems/dicom"><div class="label">Download</div></a>
+    </div>
+
+    <div class="button">
+        <a href="tutorials.html"><div class="label">Tutorials</div></a>
+    </div>
+
+    <div class="button">
+        <a href="publications.html"><div class="label">Publications</div></a>
+    </div>
+
+    <div class="button">
+        <a href="http://groups.google.com/group/ruby-dicom"><div class="label">Forum</div></a>
+    </div>
+
+    <div class="button">
+        <a href="https://github.com/dicom/ruby-dicom"><div class="label">Development</div></a>
+    </div>
+
+  </div>
+
+  <div id="content">
+
+    <div id="main-text">
+      <h2>Tutorial 1: DICOM on Rails!</h2>
+      <h3>Populating a Ruby on Rails database with data from your DICOM directory</h3>
+      <p>Although my primary idea when starting the Ruby DICOM project was really not about making a Rails application,
+      the interest I've seen initially has in large part has been related to Rails, so I thought I'd go ahead and make that the
+      subject of my first tutorial.</p>
+
+      <p>Let us start with a list of what you'll need for this tutorial:</p>
+      <p><a href="http://www.ruby-lang.org/en/downloads/">Ruby</a></p>
+      <p><a href="http://www.rubyonrails.org/">Ruby on Rails</a></p>
+      <p><a href="http://rubygems.org/gems/dicom">ruby-dicom</a></p>
+      <p><a href="http://pullmonkey.com/2008/7/23/open-flash-chart-ii-plugin-for-ruby-on-rails-ofc2">Open Flash Chart 2 plugin for Rails</a> (Optional: This is used to make some nice-looking graphs in our web interface)</p>
+
+      <p>The goal in this tutorial: To transfer all relevant content from our local DICOM storage directory to
+      a database which will be accessible through a web front end to facilitate easy oversight of our data.
+      This will be done in two steps: (1) Creating the database/web front end using Rails and (2) populating
+      the database with our DICOM data using a Ruby script.</p>
+
+      <p><h3>Part 1: Setting up the Rails environment</h3></p>
+      <p>Our DICOM directory contains files from patients that have received diagnostic X-ray CT examinations.
+      We will make a simple database that contains 5 entries: patient name, examination study, X-ray voltage, current and exposure.
+      In addition to the normal Rails setup, we want to add the possibility of clicking on an examination study and filter the database based on the selected study.
+      OK, assuming you have installed the necessary components, let's go ahead and create our database:</p>
+
+      <pre class="src">$ rails new dicom<br/>$ cd dicom<br/>$ rake db:create:all<br/>$ rails generate scaffold Examination study:string name:string voltage:string current:string exposure:string<br/>$ rake db:migrate</pre>
+
+      <p>Now we have the basic Rails environment set up. It will give you the option of viewing all database entries
+      in a long list, as well as selecting a single entry and view its details. You may even edit or delete entries, although that is not of interest to us in this situation.
+      What we want to do is making the examination study a hyperlink, which when clicked makes Rails display only the patients that have had this particular study.
+      In addition, we will add a line at the bottom of our list which gives us the average exposure in the list displayed at the screen.
+      In order to do this, two files have to be modified. First we will modify the controller: /app/controllers/examinations_controller.rb</p>
+
+      <p>In the method index, we will add a variable @study used for the filtering as well as a variable
+      used for calculating mean exposure values. The @mean_exposure variable sits inside an if statement.
+      When finished, the index method looks like this:</p>
+
+<pre class="src">
+def index
+  @examinations = Examination.find(:all)
+  @study = params[:study]
+  @mean_exposure = Examination.average(:exposure, :conditions => ['study == ?', @study]) if @study<br/>
+  respond_to do |format|
+    format.html # index.html.erb
+    format.xml  { render :xml => @examinations }
+  end
+end
+</pre>
+
+      <p>Next, we need to modify the Ruby-embedded HTML file that displays the list of entries: /app/views/examinations/index.html.erb</p>
+
+      <p>What happens in this file is that a table is generated, where the content (database records) is inserted with an iterator.
+      In this iterator we need to insert an if statement, so that a database record will not be displayed if the @study keyword is set
+      and the database record's study differs from the chosen one. In addition, the study field must be made into a hyperlink
+      with an action that calls the index method in the controller. Furthermore, at the bottom of the displayed page we want the average
+      exposure value to be displayed, but only if a certain study has been selected. When finished, the file should look something like this:</p>
+
+<pre class="src">
+&lt;h1&gt;Listing examinations&lt;/h1&gt;<br/>
+&lt;table&gt;
+  &lt;tr&gt;
+    &lt;th&gt;Study&lt;/th&gt;
+    &lt;th&gt;Name&lt;/th&gt;
+    &lt;th&gt;Voltage&lt;/th&gt;
+    &lt;th&gt;Current&lt;/th&gt;
+    &lt;th&gt;Exposure&lt;/th&gt;
+  &lt;/tr&gt;<br/>
+&lt;% @examinations.each do |examination| %&gt;
+  &lt;% unless @study and @study != examination.study %&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;%= link_to examination.study, :action =&gt; 'index', :study =&gt; examination.study %&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;%= examination.name %&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;%= examination.voltage %&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;%= examination.current %&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;%= examination.exposure %&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;%= link_to 'Show', examination %&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;%= link_to 'Edit', edit_examination_path(examination) %&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;%= link_to 'Destroy', examination, :confirm =&gt; 'Are you sure?', :method =&gt; :delete %&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;% end %&gt;
+&lt;% end %&gt;
+&lt;/table&gt;<br/>
+&lt;% if @mean_exposure %&gt;
+  &lt;br /&gt;&lt;%= "Mean exposure: #{@mean_exposure}" %&gt;&lt;br /&gt;
+&lt;% end %&gt;
+&lt;br /&gt;
+&lt;%= link_to 'Show all', examinations_path %&gt;
+</pre>
+
+      <p>That's it for the database/web front end. You can check it out to make sure everything is ok by running the following command:</p>
+
+      <pre class="src">$ rails server</pre>
+
+      <p>That starts the web server, and you access it by pointing your browser to <a href="http://localhost:3000/examinations">localhost</a>.</p>
+
+      <p><h3>Part 2: Setting up a script to read the DICOM directory and store tag data in our Rails database</h3></p>
+      <p>We now need to make a script that gives us access to the Rails database, discovers all the files contained in the
+      chosen directory, including all its subdirectories, and finally reads the DICOM data and puts it in the database.</p>
+
+      <p><em>Task 1: Access to the Rails database</em></p>
+      <p>First of all, to be able to access the Rails database, the script must be executed from within the folder
+      of the Rails project. Furthermore, our script needs to require some modules and load the database.
+      As such, the start of our script file will look like this:</p>
+
+<pre class="src">
+# Libraries required:
+require 'find'
+require 'active_record'
+require 'dicom'<br/>
+# Load your yml config from rails:
+db_config = YAML::load(File.open("./config/database.yml"))
+# Connect to the proper database:
+ActiveRecord::Base.establish_connection(db_config['development'])
+# Load the custom model we created earlier:
+require './app/models/examination'
+</pre>
+
+      <p><em>Task 2: Get a list of all the files contained within the folder</em></p>
+      <p>For this task we will use a neat little script that fits the job quite well.
+      It allows you to specify an array of folders to be searched (a search which includes any sub-folders).</p>
+
+<pre class="src">
+# Discover all the files contained in the specified directory and all its sub-directories:
+dirs = ["/home/dicomdir"]
+files = Array.new
+for dir in dirs
+  Find.find(dir) do |path|
+    if FileTest.directory?(path)
+      next
+    else
+      files &lt;&lt; path  # Store the file in our array
+    end
+  end
+end
+</pre>
+
+      <p><em>Tasks 3 and 4: Extract DICOM data from each file and store it in the database</em></p>
+      <p>The last two tasks we'll do inside an iterator which traverses our file string array and
+      reads the files using the ruby-dicom library. If a particular file is successfully parsed as a DICOM object,
+      it extracts the tags that we are interested in, creates a new database record and writes our tags to it.
+      Note that in this example the directory contains only one DICOM file per patient. If your real directory
+      contains several files per patient, which is not at all unreasonable, you will have to insert some logic
+      to deal with that.</p>
+
+<pre class="src">
+# Use a loop to run through all the files, reading its data and transferring it to the database.
+files.each do |file|
+  # Read the file:
+  dcm = DICOM::DObject.read(file)
+  # If the file was read successfully as a DICOM file, go ahead and extract content:
+  if dcm.read?
+    study = dcm.value("0008,1030")
+    name = dcm.value("0010,0010")
+    voltage = dcm.value("0018,0060")
+    current = dcm.value("0018,1151")
+    exposure = dcm.value("0018,1152")
+    # Store the data in the database:
+    e = Examination.new
+    e.study = study
+    e.name = name
+    e.voltage = voltage
+    e.current = current
+    e.exposure = exposure
+    e.save
+  end
+end
+</pre>
+
+      <p>Let us name the script <i>populate_dicom.rb</i>. Execute it (<i>ruby populate_dicom.rb</i>), then sit back and
+      relax while it does all the work and populates your Rails database!</p>
+
+      <p>That's it! We now have a working Rails database with our DICOM directory data loaded into it.
+      Launch the webserver and point your browser to localhost to see how it looks!</p>
+
+      <p><img src="./content/tutorial1-1.png" width="510" height="577" alt="Webserver screenshot"></p>
+
+      <p>Clicking on a link of one of the examination types gives you an overview of patients
+      who have received that particular examination:</p>
+
+      <p><img src="./content/tutorial1-2.png" width="472" height="202" alt="Webserver screenshot, category"></p>
+
+      <p>Note that the actual values in this particular database are mostly made up, so don't
+      pay too much attention to them. When importing strings into the database, you may
+      discover that some of them could do with some formatting to make it a bit nicer.
+      Luckily, Ruby has a lot of nice methods for string processing, like upcase, downcase, joining, splitting
+      and capitalizing, so that should be fairly straight forward.</p>
+
+      <p><p><h3>Bonus Part: Inserting a flash chart to get a nice, graphical of the distribution of studies</h3></p></p>
+      <p>There are various approaches if you want to include som charts in your Rails application,
+      and although I am no fan of Flash in general, I have to say <a href="http://teethgrinder.co.uk/open-flash-chart-2/">Open Flash Chart</a> is a pretty nice tool for the job.
+      To install this I believe you need to have Git installed. Follow <a href="http://git.or.cz/">this link for the Unix version</a>,
+      or <a href="http://msysgit.github.io/">go here for the Git Windows version</a>.
+      For installing the Rails plugin for Open Flash Charts, follow the link at the top of this page.
+      In short, run the following command in your rails project folder, then copy two files to their destination
+      as explained in the link.</p>
+
+      <pre class="src">$ rails plugin install git://github.com/pullmonkey/open_flash_chart.git</pre>
+
+      <p>What we are going to do is make a pie chart which shows us the distribution of the
+      examination studies that exist in the DICOM Rails database. To accomplish this, we will make a new
+      controller that handles the pie chart and edit this to construct our data of interest. Furthermore we will make
+      a corresponding index.html.erb file which will display the chart, and lastly, insert a link in our examination view
+      which points to this chart. Start by creating the new controller:</p>
+
+      <pre class="src">$ rails generate controller Pie</pre>
+
+      <p>We also need to make a minor addition to our routes. Open RAILS_ROOT/config/routes.rb and add these two lines:</p>
+
+<pre class="src">
+match "pie" => "pie#index"
+match "pie/graph_code" => "pie#graph_code"
+</pre>
+
+      <p>Next, we need to create a index.html.erb file for this controller, in the folder RAILS_ROOT/app/views/pie/
+      and insert the following code to that file:</p>
+
+<pre class="src">
+&lt;script type=&quot;text/javascript&quot; src=&quot;/javascripts/swfobject.js&quot;&gt;&lt;/script&gt;
+&lt;%=raw @graph %&gt;
+</pre>
+
+      <p>Now we need to modify the controller to create the chart and use the data that is of interest to us.
+      Edit the file pie_controller.rb, which you will find in the RAILS_ROOT/app/controllers/ folder, with the following code:</p>
+
+<pre class="src">
+class PieController &lt; ApplicationController<br/>
+  def index
+    @graph = open_flash_chart_object(800,600,"/pie/graph_code")
+  end<br/>
+  def graph_code
+    # Determine the distribution of examination studies in the database:
+    examinations = Examination.all
+    studies = Array.new
+    examinations.each do |e|
+      studies &lt;&lt; e.study
+    end
+    unique = studies.uniq
+    results = Hash.new
+    unique.each do |u|
+      results[u] = studies.select{|s| s == u}.length
+    end
+    # Create the pie chart and insert the determined data:
+    title = Title.new("Distribution of Studies")
+    pie = Pie.new
+    pie.start_angle = 35
+    pie.animate = true
+    pie.tooltip = '#val# of #total#&lt;br&gt;#percent#'
+    pie.colours = ["#0000ff", "#ff0000", "#00ff00"]
+    values = Array.new
+    results.each do |k, v|
+      values &lt;&lt; PieValue.new(v, k)
+    end
+    pie.values = values
+    chart = OpenFlashChart.new
+    chart.title = title
+    chart.add_element(pie)
+    chart.x_axis = nil
+    render :text => chart.to_s
+  end<br/>
+end
+</pre>
+
+      <p>Note that I have specified 3 colours here, as I know I have 3 elements in my chart.
+      If you don't know how many elements that will make up your chart, you can either avoid specifying
+      the colours altogether, or you need to use some logic to set up the correct number of colors that is needed for your chart.</p>
+
+      <p>Our chart is ready: all that remains is to edit the index.html.erb file of the examinations controller, so that it will
+      display a link at the top of the page, pointing to the chart we just made.
+      Add the following lines at the top of the file:</p>
+
+<pre class="src">
+&lt;% unless @study %&gt;
+  &lt;%= link_to 'Pie Chart of the study distribution', 'pie' %&gt;
+&lt;% end %&gt;
+</pre>
+
+      <p>The link will be displayed at the top of the page when you are at the "main" page (when displaying selected
+      studies or single database entries it will be hidden). Clicking on the link will reveal the nice-looking flash pie chart,
+      where a small information box will appear as your mouse hovers above a slice:</p>
+
+      <p><img src="./content/tutorial1-3b.png" width="603" height="597" alt="Flash Pie Chart"></p>
+
+      <p>That's it! You now have a working Rails database containing a snapshot of the content of your DICOM directory.
+      It may not be that pretty (admittedly I am no expert in neither Rails nor HTML), but with the basic functionality illustrated it should
+      be a good starting point for you to make something useful from. Now go on an impress your boss with a snazzy DICOM on Rails web application!</p>
+
+      <p>I hope you have found this tutorial helpful, and as always: All feedback is appreciated!</p>
+      <br/>
+      <p><i>Published: August 25th 2008</p>
+      <p>Last updated: February 22nd 2015</p>
+
+      <span style="font-size: 0.92em; color: #7e7e7e;"><p><i>Christoffer Lerv&aring;g<br />
+      chris.lervag <span style="color: #aeaeae;">@nospam.com</span> @gmail.com</i></p><span>
+
+     </div>
+
+   </div>
+</div>
+
+</body></html>
