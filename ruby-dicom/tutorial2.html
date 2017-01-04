@@ -94,51 +94,44 @@ dcm.write('clean.dcm')</pre>
       <pre class="src">
 require 'dicom'
 a = DICOM::Anonymizer.new
-a.anonymize('/dicom/ct-series')</pre>
+a.anonymize_path('/dicom/ct-series')</pre>
 
       <p>That's it! The anonymize method will print some information to the screen as it processes the DICOM files.
       Your output might look something like this:</p>
 
       <pre class="src">
-irb(main):005:0> a.execute
-*******************************************************
-Initiating anonymization process.
-Searching for files...
-Done.
-2 files have been identified in the specified folder(s).
-Separate write folder not specified. Will overwrite existing DICOM files.
-Initiating read/update/write process...
-Anonymization process completed!
-All files in specified folder(s) were SUCCESSFULLY read to DICOM objects.
-All DICOM objects were SUCCESSFULLY written as DICOM files (2 files).
-Elapsed time: 0.1 seconds
-*******************************************************
+irb(main):005:0> a.anonymize_path('/dicom/ct-series')
+I, [2017-01-04T14:58:04.180086 #2784]  INFO -- DICOM: 3 DICOM files have been prepared for anonymization.
+I, [2017-01-04T14:58:04.211286 #2784]  INFO -- DICOM: Anonymization complete.
       </pre>
 
-      <p>Now I figure you might ask: Which tags were really anonymized here? Finding that out is quite easy, just call
-      the print method and you'll get a small list answering just that.</p>
-
-      <pre class="src">$ a.print<br/></pre>
-
-      <p>This method prints a list of data elements that are selected for anonymization. The list contains data element
-      tag, name, type and the value which will be written to the anonymized files.</p>
+      <p>Now I figure you might ask: Which tags were really anonymized here? By default, the following tags are
+      anonymized (to change this, use the #set_tag() and #remove_tag() methods):</p>
 
       <pre class="src">
-irb(main):005:0> a.print
-0008,0012 Instance Creation Date     DA 20000101
-0008,0013 Instance Creation Time     TM 000000.00
-0008,0020 Study Date                 DA 20000101
-0008,0023 Content Date               DA 20000101
-0008,0030 Study Time                 TM 000000.00
-0008,0033 Content Time               TM 000000.00
-0008,0080 Institution Name           LO Institution
-0008,0090 Referring Physician's Name PN Physician
-0008,1010 Station Name               SH Station
-0010,0010 Patient's Name             PN Patient
-0010,0020 Patient ID                 LO ID
-0010,0030 Patient's Birth Date       DA 20000101
-0010,0040 Patient's Sex              CS N
-0020,4000 Image Comments             LT
+0008,0012 Instance Creation Date
+0008,0013 Instance Creation Time
+0008,0020 Study Date
+0008,0021 Series Date
+0008,0022 Acquisition Date
+0008,0023 Image Date
+0008,0030 Study Time
+0008,0031 Series Time
+0008,0032 Acquisition Time
+0008,0033 Image Time
+0008,0050 Accession Number
+0008,0080 Institution name
+0008,0081 Institution Address
+0008,0090 Referring Physician's name
+0008,1010 Station name
+0008,1040 Institutional Department name
+0008,1070 Operator's Name
+0010,0010 Patient's name
+0010,0020 Patient's ID
+0010,0030 Patient's Birth Date
+0010,0040 Patient's Sex
+0010,1010 Patient's Age
+0020,4000 Image Comments
       </pre>
 
       <p><h3>Part 3: Advanced anonymization with enumeration and identity file</h3></p>
@@ -148,14 +141,14 @@ irb(main):005:0> a.print
       <ul>
       <li>Specifying a separate write path to store the anonymized files, instead of overwriting your existing files.</li>
       <li>Blanking all data element values instead of assigning a custom, general string value.</li>
-      <li>Add several folders to be anonymized (along with their sub-folders).</li>
-      <li>Specify one or several sub-folders to be exempted from anonymization.</li>
       <li>Add or remove tags from the list of tags that will be anonymized.</li>
       <li>Specify that all private tags are to be deleted.</li>
+      <li>Using an audit trail file for possible re-identification of anonymized dicom files.</li>
+      <li>Randomizing file names.</li>
       </ul>
 
       <p>Having talked a bit about features, it's time to get on with our example. What we are going to do here is
-      make a small script that will anonymize a DICOM directory with enumeration and create an identity file.
+      make a small script that will anonymize a DICOM directory with enumeration and create an audit trail file.
       What, exactly, is that, you may ask? Let me explain:</p>
 
       <p>With enumeration enabled, the anonymizer class will keep track of the values it encounters for all
@@ -165,107 +158,89 @@ irb(main):005:0> a.print
       anonymized value will be bumped to "Name2". If several sets of DICOM files contain the same "Referring Physician's Name"
       they will all be anonymized with a value such as "Physician1".</p>
 
-      <p>In addition to using enumeration and identity file, we will tell our Anonymizer to delete all private tags
+      <p>In addition to using enumeration and an audit trail file, we will tell our Anonymizer to delete all private tags
       from the anonymized DICOM files (You never know what might be hiding in those unpredictable private tags, right?).</p>
 
       <pre class="src">
 # Load the ruby-dicom library:
-require "rubygems"
-require "dicom"
-# Load an anonymization instance:
-a = DICOM::Anonymizer.new
-# Add the folder to be anonymized:
-a.add_folder("/home/dicom")
+require 'dicom'
+# Load an anonymization instance (and specifying an audit trail file):
+a = DICOM::Anonymizer.new(audit_trail: 'audit_trail.txt')
 # Request private data element removal:
 a.delete_private = true
-# In addition to the default selection of tags to be anonymized, we would like to add "Operator's Name" as well:
-a.set_tag("0008,1070", :value => "Operator", :enum => true)
+# In addition to the default selection of tags to be anonymized, we would like to add "Manufacturer" as well:
+a.set_tag('0008,0070', :value => 'Manufacturer', :enum => true)
 # Lets leave out "Institution Name" from the anonymization process:
-a.remove_tag("0008,0080")
+a.remove_tag('0008,0080')
 # Select the enumeration feature:
 a.enumeration = true
-# Specify a file to keep track of the identities behind the enumerated, anonymized values:
-a.identity_file = "/home/identity.txt"
 # Avoid overwriting the original files by storing the anonymized files in a separate folder from the original files:
-a.write_path = "/home/write"
-# Print the list of selected tags just to verify that everything is correct:
-a.print
+a.write_path = 'C:/dicom/source'
 # Run the actual anonymization:
-a.execute
+a.anonymize_path('C:/dicom/destination')
       </pre>
 
       <p>Lets name it anonymize.rb, execute and see how it goes. Your terminal output might end up looking something like this:</p>
 
       <pre class="src">
-user@home:~/ruby/dicom$ ruby anonymize.rb
-0008,0012 Instance Creation Date     DA 20000101  false
-0008,0013 Instance Creation Time     TM 000000.00 false
-0008,0020 Study Date                 DA 20000101  false
-0008,0023 Content Date               DA 20000101  false
-0008,0030 Study Time                 TM 000000.00 false
-0008,0033 Content Time               TM 000000.00 false
-0008,0090 Referring Physician's Name PN Physician true
-0008,1010 Station Name               SH Station   true
-0010,0010 Patient's Name             PN Patient   true
-0010,0020 Patient ID                 LO ID        true
-0010,0030 Patient's Birth Date       DA 20000101  false
-0010,0040 Patient's Sex              CS N         false
-0020,4000 Image Comments             LT           false
-0008,1070 Operators' Name            PN Operator  true
-*******************************************************
-Initiating anonymization process.
-Searching for files...
-Done.
-1046 files have been identified in the specified folder(s).
-Processing write paths...
-Done
-Initiating read/update/write process (This may take some time)...
-Anonymization process completed!
-All files in specified folder(s) were SUCCESSFULLY read to DICOM objects.
-All DICOM objects were SUCCESSFULLY written as DICOM files (1046 files).
-Writing identity file.
-Done
-Elapsed time: 55.0 seconds
-*******************************************************
+C:\dicom>ruby anonymize.rb
+I, [2017-01-04T15:19:29.069984 #1824]  INFO -- DICOM: 167 DICOM files have been prepared for anonymization.
+I, [2017-01-04T15:20:54.269049 #1824]  INFO -- DICOM: Anonymization complete.
       </pre>
 
-      <p>Now, part of what we did here, was to create an identity file that enables us to re-identify the anonymized
-      dicom files at a later time, if we wish so. Lets take a look at the content of the identity file that was created for us:</p>
+      <p>Now, part of what we did here, was to create an audit trail file that enables us to re-identify
+      the anonymized dicom files at a later time, if we want to. The information is stored in plain text using
+      the json format. Lets take a look at the content of the audit trail file that was created for us:</p>
 
       <pre class="src">
-0008,0090
-Physician1;Dr Feelgood
-Physician2;Sam Surgery
-Physician3;Pat Placebo
-
-0008,1010
-Station1;CT1
-Station2;CT2
-
-0010,0010
-Patient1;Peter Pelvis
-Patient2;Jackie Chaan
-Patient3;Indiana Jonas
-Patient4;Sara Sirius
-Patient5;Anna Sahara
-Patient6;John Doo
-Patient7;Richard Sick
-Patient8;Tommy Tumor
-
-0010,0020
-ID1;123456
-ID2;654321
-ID3;666444
-ID4;444666
-ID5;010110
-ID6;098765
-ID7;567890
-ID8;011001
-
-0008,1070
-Operator1;John Operator
-Operator2;Jack Buttons
-Operator3;Connie Computer
+{
+  "0008,1010": {
+    "CT1": "Station1",
+    "CT2": "Station2"
+  },
+  "0008,1040": {
+    "RadOnc": "Department1",
+    "Radiology": "Department2"
+  },
+  "0008,0070": {
+    "ACME": "Manufacturer1",
+    "Wayne Enterprise": "Manufacturer2"
+  },
+  "0008,0090": {
+    "Dr.Evil": "Physician1",
+    "Dr. Smith": "Physician2"
+  },
+  "0008,1070": {
+    "Jack Buttons": "Operator1",
+    "Connie Computer": "Operator2"
+  },
+  "0010,0010": {
+    "Peter Pelvis": "Patient1",
+    "Jackie Chan": "Patient2",
+    "Indiana Jones": "Patient3",
+    "Sara Sirius": "Patient4",
+    "Anna Sahara": "Patient5",
+    "John Doo": "Patient6",
+    "Richard Sick": "Patient7",
+    "Tommy Tumor": "Patient8"
+  },
+  "0010,0020": {
+    "12345": "ID1",
+    "11111": "ID2",
+    "666": "ID3",
+    "010101": "ID4"
+  },
+  "0008,0081": {
+    "Earth": "Address1",
+    "ISS": "Address2",
+    "Mars": "Address3"
+  },
+  "0008,0050": {
+    "A20": "1",
+    "B66": "2",
+    "S13": "3"
+  }
+}
       </pre>
 
       <p><h3>Part 4: Anonymizing burned-in image data</h3></p>
